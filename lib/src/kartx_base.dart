@@ -7,10 +7,10 @@ final class Kartx {
   final List<String> _unionQueries = [];
   int? _limit;
   int? _offset;
-  Map<String, dynamic> _insertData = {};
+  final List<Map<String, dynamic>> _insertData = [];
   Map<String, dynamic> _updateData = {};
   String? _queryType;
-  final List<dynamic> _parameters = [];
+  final List<List<dynamic>> _parameters = [];
   String? _createTableSQL;
   final List<String> _alterTableCommands = [];
 
@@ -27,7 +27,7 @@ final class Kartx {
 
   Kartx where(String column, String operator, dynamic value) {
     _whereClauses.add("$column $operator ?");
-    _parameters.add(value);
+    _parameters.add([value]);
     return this;
   }
 
@@ -46,17 +46,33 @@ final class Kartx {
     return this;
   }
 
-  Kartx insert(Map<String, dynamic> data) {
+  Kartx insert(dynamic data) {
     _queryType = 'INSERT';
-    _insertData = data;
-    _parameters.addAll(data.values);
+    _insertData.clear();
+    _parameters.clear();
+
+    if (data is Map<String, dynamic>) {
+      _insertData.add(data);
+      _parameters.add(data.values.toList());
+    } else if (data is List<Map<String, dynamic>>) {
+      _insertData.addAll(data);
+      for (var entry in data) {
+        _parameters.add(entry.values.toList());
+      }
+    } else {
+      throw ArgumentError(
+        "Data must be a Map<String, dynamic> or List<Map<String, dynamic>>",
+      );
+    }
+
     return this;
   }
 
   Kartx update(Map<String, dynamic> data) {
     _queryType = 'UPDATE';
     _updateData = data;
-    _parameters.addAll(data.values);
+    _parameters.clear();
+    _parameters.add(data.values.toList());
     return this;
   }
 
@@ -125,7 +141,7 @@ final class Kartx {
     throw Exception('Nenhuma operação definida!');
   }
 
-  List<dynamic> getParameters() => _parameters;
+  List<List<dynamic>> getParameters() => _parameters;
 
   String _buildSelect() {
     String sql = "SELECT ${_columns.join(', ')} FROM $_table";
@@ -142,9 +158,18 @@ final class Kartx {
   }
 
   String _buildInsert() {
-    String columns = _insertData.keys.join(', ');
-    String placeholders = List.filled(_insertData.length, '?').join(', ');
-    return "INSERT INTO $_table ($columns) VALUES ($placeholders);";
+    if (_insertData.isEmpty) {
+      throw Exception("No data provided for insert.");
+    }
+
+    String columns = _insertData.first.keys.join(', ');
+    String placeholders = _insertData
+        .map(
+          (placeholder) =>
+              "(${List.filled(placeholder.length, '?').join(', ')})",
+        )
+        .join(', ');
+    return "INSERT INTO $_table ($columns) VALUES $placeholders;";
   }
 
   String _buildUpdate() {
@@ -162,5 +187,3 @@ final class Kartx {
     return "$sql;";
   }
 }
-
-final kartx = Kartx();

@@ -3,6 +3,6 @@
 /// More dartdocs go here.
 library;
 
-export 'src/kartx_base.dart' hide Kartx;
+export 'src/kartx_base.dart';
 
 // TODO: Export any libraries intended for clients of this package.
